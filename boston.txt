@@ -1,0 +1,58 @@
+import pandas as pd
+import numpy as np
+import seaborn as sns
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from keras.models import Sequential
+from keras.layers import Dense
+
+# Load the data
+data = pd.read_csv("./HousingData.csv")
+
+# Data exploration
+data.head()
+data.columns
+data.head(n=10)
+data.shape
+data.isnull().sum()
+data.describe()
+data.info()
+
+# Data visualization
+sns.histplot(data["MEDV"])
+sns.boxplot(data["MEDV"])
+
+# Preprocess the data
+x = data.drop('MEDV', axis=1)
+y = data['MEDV']
+scaler = StandardScaler()
+x = scaler.fit_transform(x)
+
+# Split the data into training and testing sets
+X_train, X_test, Y_train, Y_test = train_test_split(x, y, test_size=0.3)
+
+print('Training set shape:', X_train.shape, Y_train.shape)
+print('Testing set shape:', X_test.shape, Y_test.shape)
+
+# Define the model architecture
+model = Sequential()
+model.add(Dense(128, activation='relu', input_shape=(13,)))
+model.add(Dense(64, activation='relu'))
+model.add(Dense(32, activation='relu'))
+model.add(Dense(16, activation='relu'))
+model.add(Dense(1))
+
+# Display the model summary
+print(model.summary())
+
+# Compile the model
+model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mean_absolute_error'])
+
+# Train the model
+history = model.fit(X_train, Y_train, epochs=20, batch_size=512, validation_data=(X_test, Y_test))
+
+# Evaluate the model on the testing set
+results = model.evaluate(X_test, Y_test)
+
+# Make predictions on the testing set
+predictions = model.predict(X_test)
