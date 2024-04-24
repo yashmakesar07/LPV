@@ -1,58 +1,53 @@
-import pandas as pd
 import numpy as np
-import seaborn as sns
-from sklearn.preprocessing import StandardScaler
+import pandas as pd
+import tensorflow as tf
 from sklearn.model_selection import train_test_split
-from keras.models import Sequential
-from keras.layers import Dense
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import r2_score
 
-# Load the data
-data = pd.read_csv("./HousingData.csv")
+# Load the Boston Housing dataset
+data_url = "http://lib.stat.cmu.edu/datasets/boston"
+raw_df = pd.read_csv(data_url, sep="\s+", skiprows=22, header=None)
+data = np.hstack([raw_df.values[::2, :], raw_df.values[1::2, :2]])
+target = raw_df.values[1::2, 2]
 
-# Data exploration
-data.head()
-data.columns
-data.head(n=10)
-data.shape
-data.isnull().sum()
-data.describe()
-data.info()
-
-# Data visualization
-sns.histplot(data["MEDV"])
-sns.boxplot(data["MEDV"])
-
-# Preprocess the data
-x = data.drop('MEDV', axis=1)
-y = data['MEDV']
-scaler = StandardScaler()
-x = scaler.fit_transform(x)
+# raw_df.head(n=10)
 
 # Split the data into training and testing sets
-X_train, X_test, Y_train, Y_test = train_test_split(x, y, test_size=0.3)
+X_train, X_test, y_train, y_test = train_test_split(data, target, test_size=0.2, random_state=42)
 
-print('Training set shape:', X_train.shape, Y_train.shape)
-print('Testing set shape:', X_test.shape, Y_test.shape)
+# Scale the data
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
 
-# Define the model architecture
-model = Sequential()
-model.add(Dense(128, activation='relu', input_shape=(13,)))
-model.add(Dense(64, activation='relu'))
-model.add(Dense(32, activation='relu'))
-model.add(Dense(16, activation='relu'))
-model.add(Dense(1))
-
-# Display the model summary
-print(model.summary())
+# Build the model
+model = tf.keras.Sequential([
+    tf.keras.layers.Dense(64, activation='relu', input_shape=(X_train_scaled.shape[1],)),
+    tf.keras.layers.Dense(64, activation='relu'),
+    tf.keras.layers.Dense(1)
+])
 
 # Compile the model
-model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mean_absolute_error'])
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
 
 # Train the model
-history = model.fit(X_train, Y_train, epochs=20, batch_size=512, validation_data=(X_test, Y_test))
+model.fit(X_train_scaled, y_train, epochs=100, verbose=1)
 
-# Evaluate the model on the testing set
-results = model.evaluate(X_test, Y_test)
+# Display the loss and Mean Absolute Error (MAE)
+loss, mae = model.evaluate(X_test_scaled, y_test, verbose=0)
+print(f"Mean Absolute Error: {mae}")
 
-# Make predictions on the testing set
-predictions = model.predict(X_test)
+# Display the R2 score
+y_pred = model.predict(X_test_scaled)
+r_squared = r2_score(y_test, y_pred)
+print(f"R-squared: {round((r_squared)*100)} %")
+
+# Infer the model on new data
+def predict_new_data(new_data):
+    new_data_scaled = scaler.transform(new_data)
+    predictions = model.predict(new_data_scaled)
+    return predictions
+
+new_data = np.array([[0.00632, 18.0, 2.31, 0, 0.538, 6.575, 65.2, 4.09, 1, 296.0, 15.3, 396.9, 4.98]])
+print("Predicted price:", predict_new_data(new_data))
