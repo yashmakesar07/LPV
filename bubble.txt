@@ -1,63 +1,90 @@
 #include<iostream>
-#include<stdlib.h>
 #include<omp.h>
+#include<chrono>
+
 using namespace std;
 
-void bubble(int *, int);
-void swap(int &, int &);
-
-
-void bubble(int *a, int n)
-{
-    for(  int i = 0;  i < n;  i++ )
-     {
-   	 int first = i % 2;
-
-   	 #pragma omp parallel for shared(a,first)
-   	 for(  int j = first;  j < n-1;  j += 2  )
-   	   {
-   		 if(  a[ j ]  >  a[ j+1 ]  )
-   		  {
-     			 swap(  a[ j ],  a[ j+1 ]  );
-   		  }
-   		   }
-     }
+void swap(int &a, int &b) {
+    int temp = a;
+    a = b;
+    b = temp;
 }
 
-
-void swap(int &a, int &b)
-{
-
-    int test;
-    test=a;
-    a=b;
-    b=test;
-
+void serial_bubble(int *arr, int n) {
+    bool swapped;
+    for (int i=0; i<n-1; i++) {
+        swapped = false;
+        for (int j=0; j<n-i-1; j++) {
+            if (arr[j] > arr[j+1]) {
+                swap(arr[j], arr[j+1]);
+                swapped = true;
+            }
+        }
+        if(!swapped) {
+            break;
+        }
+    }
 }
 
-int main()
-{
+void parallel_bubble(int *arr, int n) {
+    bool swapped;
+    // #pragma omp parallel for
+    for (int i=0; i<n-1; i++) {
+        swapped = false;
 
-    int *a,n;
-    cout<<"\n enter total no of elements=>";
+        #pragma omp parallel for shared(arr, swapped)
+        for (int j=0; j<n-i-1; j++) {
+          if (arr[j] > arr[j+1]) {
+            #pragma omp critical
+            {
+              swap(arr[j], arr[j+1]);
+              swapped = true;
+            }
+          }
+        }
+
+        if(!swapped) {
+            break;
+        }
+    }
+}
+
+void print_list(int *arr, int n) {
+    for(int i=0; i<n; i++) {
+        cout<<arr[i]<<" ";
+    }
+}
+
+int main() {
+    int *list1, *list2, e, n;
+    cout<<"Enter No of Elements: ";
     cin>>n;
-    a=new int[n];
-    cout<<"\n enter elements=>";
-    for(int i=0;i<n;i++)
-    {
-   	 cin>>a[i];
+    list1 = list2 = new int[n];
+
+    cout<<"Enter Elements: "<<endl;
+    for(int i=0; i<n; i++) {
+   	    cin>>e;
+        list1[i] = list2[i] = e;
     }
 
-    bubble(a,n);
+    auto start_s = chrono::high_resolution_clock::now();
+    serial_bubble(list1, n);
+    auto end_s = chrono::high_resolution_clock::now();
+    chrono::duration<double, milli> time_s = end_s - start_s;
 
-    cout<<"\n sorted array is=>";
-    for(int i=0;i<n;i++)
-    {
-   	 cout<<a[i]<<endl;
-    }
+    auto start_p = chrono::high_resolution_clock::now();
+    parallel_bubble(list2, n);
+    auto end_p = chrono::high_resolution_clock::now();
+    chrono::duration<double, milli> time_p = end_p - start_p;
 
+    cout<<"Serial Bubble Sort: ";
+    print_list(list1, n);
+    cout<<"\nTime: "<<time_s.count()<<"ms"<<endl;
+    cout<<"Parallel Bubble Sort: ";
+    print_list(list2, n);
+    cout<<"\nTime: "<<time_p.count()<<"ms"<<endl;
 
-return 0;
+    return 0;
 }
 
 
